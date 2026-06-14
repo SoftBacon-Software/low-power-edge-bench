@@ -1,0 +1,17 @@
+cff-version: 1.2.0
+title: "Low Power Edge — Mars Decision Benchmark"
+message: "If you use this benchmark, please cite it."
+type: dataset
+authors:
+  - family-names: Barajas
+    given-names: Gilbert
+date-released: "2026-06-14"
+url: "https://github.com/SoftBacon-Software/low-power-edge-bench"
+keywords:
+  - edge-ai
+  - small-language-models
+  - tokens-per-watt
+  - space-autonomy
+  - benchmark
+  - jetson
+license: MIT

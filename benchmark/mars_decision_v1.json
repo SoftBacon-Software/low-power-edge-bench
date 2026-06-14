@@ -1,0 +1,62 @@
+{
+  "name": "Low Power Edge — Mars decision eval (v1)",
+  "provenance": {
+    "methodology": "Replicates the evaluation METHODOLOGY of arXiv:2603.28926 (structured space-mission anomaly-decision scenarios scored against physics-grounded ground truth). The paper does NOT release its test set, so these are HAND-ROLLED, grounded in its three named domains (Walker/coverage geometry, EKF tracking, RF/acoustic link budgets) plus Mars-survival engineering. Discrete multiple-choice format follows Reasoning-Gym's rule-based structure for clean small-model scoring.",
+    "flavor": "The Martian — Watney-style survival/engineering decisions under hard physical constraint.",
+    "baseline": "arXiv:2603.28926 reports ~80% decision accuracy by a 70B model (Llama-3.3-70B / DeepSeek-V3) via cloud API within a 2s latency budget. This eval asks: what does a ~2B model score on a 10W Jetson?",
+    "ground_truth_status": "UNVERIFIED until squad + operator peer-review. Each answer is defensible from first-principles physics; the rationale is the answer key. Distractors are plausible-but-wrong. Correct-letter distribution is spread (A x3, B x3, C x2, D x2) to defeat position-gaming.",
+    "scoring": "Model is shown `prompt`; extract the first standalone A/B/C/D in its reply; correct if it equals `answer`. Accuracy = correct / 10. Measure tok/s-per-watt over the run with bakeoff_measure.sh."
+  },
+  "items": [
+    {
+      "id": "M1", "domain": "link_budget", "answer": "A",
+      "prompt": "Your Ares habitat's high-gain antenna is damaged, forcing a fallback to the low-gain antenna. The downlink margin to the Mars relay orbiter goes negative at the current 32 kbps. To restore a positive link margin, the best decision is:\nA) Lower the data rate (e.g., to 8 kbps)\nB) Increase transmit power above the amplifier's rated maximum\nC) Keep transmitting at 32 kbps and rely on error-correction coding\nD) Re-point the low-gain antenna more precisely\nAnswer with ONLY the letter (A, B, C, or D) of the best decision.",
+      "rationale": "Lower antenna gain -> less EIRP -> negative margin. Required Eb/N0 scales with data rate; lowering the rate cuts the required SNR and restores positive margin. (B) exceeds hardware limits; (C) a negative margin means decode failures FEC cannot recover; (D) low-gain antennas are near-omnidirectional, so re-pointing barely helps."
+    },
+    {
+      "id": "M2", "domain": "coverage_geometry", "answer": "B",
+      "prompt": "A rover can only uplink to Earth via a relay orbiter that passes overhead about every 2 hours for an 8-minute window at 8 kbps (~0.48 MB per window). A 40 MB science cache must get out before an approaching dust storm (~90 minutes away) may bury the antenna. The best decision is:\nA) Wait for one window and send all 40 MB at once\nB) Compress and prioritize the highest-value subset that fits the next one or two windows\nC) Switch the small rover to direct-to-Earth X-band transmission\nD) Abort the downlink to preserve battery\nAnswer with ONLY the letter (A, B, C, or D) of the best decision.",
+      "rationale": "40 MB at 8 kbps is ~11 hours of contact = dozens of 8-minute windows, impossible before the storm; one window moves only ~0.48 MB. So prioritize the highest-value subset that fits. (A) cannot physically fit one window; (C) a small rover lacks the direct-to-Earth X-band power/antenna across ~0.5+ AU; (D) abandons recoverable science."
+    },
+    {
+      "id": "M3", "domain": "ekf_tracking", "answer": "C",
+      "prompt": "In a dust storm, the rover's camera-based visual odometry degrades to near-useless, but its IMU and wheel odometry still function. For position estimation while creeping to shelter, the best decision is:\nA) Trust visual odometry alone, since it is normally the most accurate\nB) Halt all state estimation and wait out the storm\nC) Fuse IMU and wheel odometry in the EKF and inflate (down-weight) the visual-measurement covariance\nD) Reset the EKF state to zero and restart fresh\nAnswer with ONLY the letter (A, B, C, or D) of the best decision.",
+      "rationale": "An EKF fuses sensors weighted by their noise covariance. When a sensor degrades, inflate its measurement covariance so the filter down-weights it and leans on the reliable sensors. (A) uses the now-unreliable sensor; (B) may strand the rover; (D) discards valid prior state."
+    },
+    {
+      "id": "M4", "domain": "power_budget", "answer": "D",
+      "prompt": "Dust has cut solar output to 40% and a storm is reducing it further; the battery is at 60%. Loads are: life support (O2/CO2), core-electronics freeze protection, the rescue-location comms beacon, and science instruments + cabin comfort heating. To survive the storm, the first loads to shed are:\nA) Life support\nB) Core-electronics freeze protection\nC) The rescue-location comms beacon\nD) Science instruments and cabin comfort heating\nAnswer with ONLY the letter (A, B, C, or D) of the best decision.",
+      "rationale": "Shed the lowest-criticality loads first: science + comfort heating are not survival-essential, so cutting them preserves battery for life support and freeze protection. (A) is fatal; (B) risks permanent hardware loss; (C) trades survival-now for lost rescue."
+    },
+    {
+      "id": "M5", "domain": "life_support", "answer": "A",
+      "prompt": "The primary CO2 scrubber fails and cabin CO2 climbs past 0.5% and rising. A backup scrubber works but power is tight during a storm. The correct action is:\nA) Bring the backup scrubber online, reallocating power to it\nB) Do nothing - CO2 at these levels is harmless\nC) Vent cabin atmosphere to space to dump the CO2\nD) Raise cabin temperature to drive off the CO2\nAnswer with ONLY the letter (A, B, C, or D) of the best decision.",
+      "rationale": "Rising CO2 (hypercapnia) is acutely dangerous and becomes lethal; scrubbing is non-negotiable, so reallocate power to the backup. (B) is false; (C) also vents breathable O2 and pressure; (D) heat does not remove CO2."
+    },
+    {
+      "id": "M6", "domain": "propulsion", "answer": "B",
+      "prompt": "The Mars Ascent Vehicle is over its mass budget and cannot reach orbital velocity with the propellant available. The single highest-leverage way to make orbit is:\nA) Add cargo as ballast for stability\nB) Strip non-essential mass to lower the vehicle's dry mass\nC) Launch at night when temperatures are lower\nD) Target a higher orbit to take advantage of gravity\nAnswer with ONLY the letter (A, B, C, or D) of the best decision.",
+      "rationale": "Tsiolkovsky's rocket equation dv = Isp*g*ln(m0/mf): for fixed propellant, reducing dry mass (mf) increases achievable dv. Stripping non-essential mass is the lever (the Martian's MAV solution). (A) adds mass; (C) temperature is not the limiter; (D) a higher orbit needs more dv, not less."
+    },
+    {
+      "id": "M7", "domain": "thermal", "answer": "C",
+      "prompt": "Surface temperatures fall to -80C at night. The rover carries a radioisotope thermoelectric generator (RTG) that produces continuous heat and power. To keep the cabin and electronics from freezing overnight with minimal battery drain, the best decision is:\nA) Run electric resistive heaters off the battery through the night\nB) Open the cabin to equalize with the outside temperature\nC) Route the RTG's waste heat to the cabin and electronics\nD) Rely on residual daytime heat alone\nAnswer with ONLY the letter (A, B, C, or D) of the best decision.",
+      "rationale": "An RTG dumps most of its energy as continuous waste heat; routing it provides 'free' thermal management without draining the battery (the Martian's RTG trick). (A) drains the battery; (B) accelerates freezing; (D) is insufficient over a long, cold night."
+    },
+    {
+      "id": "M8", "domain": "eva_consumables", "answer": "D",
+      "prompt": "An EVA to repair the antenna is estimated at 90 minutes; your suit holds 120 minutes of O2. A plausible second fault could add 40 minutes. Before committing to the EVA, the right consumables decision is:\nA) Carry exactly 90 minutes of O2 to conserve reserves\nB) Skip the pre-breathe protocol to save time\nC) Lower suit pressure to stretch the rated O2 duration\nD) Carry contingency O2 (or stage a refill) covering the 90+40-minute worst case plus reserve\nAnswer with ONLY the letter (A, B, C, or D) of the best decision.",
+      "rationale": "Plan to worst-case duration plus a safety reserve: 90+40 = 130 min exceeds the 120-min rating, so contingency O2 or a staged refill is required. (A) leaves zero margin; (B) pre-breathe prevents decompression sickness; (C) under-pressure risks hypoxia/DCS."
+    },
+    {
+      "id": "M9", "domain": "pressure_integrity", "answer": "A",
+      "prompt": "A slow breach is dropping habitat pressure about 2% per hour; you have patching material. The correct sequence is:\nA) Locate the leak (trace airflow/condensation), patch it, then repressurize while monitoring the rate\nB) Permanently evacuate to the rover and abandon the habitat\nC) Raise O2 inflow to outpace the leak indefinitely\nD) Ignore it until pressure becomes critical\nAnswer with ONLY the letter (A, B, C, or D) of the best decision.",
+      "rationale": "A slow, patchable leak calls for find -> patch -> repressurize -> verify. (B) abandons a recoverable hab; (C) wastes finite O2, raises fire risk, and masks the fault; (D) lets a fixable problem turn fatal."
+    },
+    {
+      "id": "M10", "domain": "isru_agriculture", "answer": "B",
+      "prompt": "To grow food, you must make Martian regolith arable. The binding constraint you must solve first is that the regolith:\nA) Is too rich in nutrients and must be diluted\nB) Lacks liquid water and bioavailable (fixed) nitrogen/organic matter, which you must add\nC) Needs higher radiation exposure to stimulate growth\nD) Requires the habitat O2 to be lowered to zero for the plants\nAnswer with ONLY the letter (A, B, C, or D) of the best decision.",
+      "rationale": "Mars regolith is dry and lacks bioavailable nitrogen/organic matter; plants need liquid water plus fixed nitrogen (Watney's water-from-hydrazine + human-waste fertilizer). (A) is false; (C) radiation harms plants; (D) plants need some O2 and this would kill the crew."
+    }
+  ]
+}
