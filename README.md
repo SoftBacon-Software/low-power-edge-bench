@@ -63,8 +63,12 @@ power** off a solar panel or a battery.
 
 ## Status
 
-**v1 — benchmark published (pre-registration).** Contender results — Gemma-4 E2B vs a small
-NVIDIA model, swept across Jetson power modes (`nvpmodel`) — to follow here.
+**v1 — results in.** Gemma-4 E2B (DeepMind) vs Llama-3.2-3B (NVIDIA's recommended pick) vs
+Nemotron-mini (NVIDIA's own), swept across Jetson power modes. See **[RESULTS.md](RESULTS.md)**.
+
+> Headline: at **15 W**, Gemma-4 E2B makes **90%-accurate** space-survival decisions at
+> ~18 tok/s drawing **8.8 watts** — ~60% more tokens-per-watt than the model NVIDIA
+> recommends, and ~80% more than NVIDIA's own model, on NVIDIA's own board.
 
 ## License & citation
 
