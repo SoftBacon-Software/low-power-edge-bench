@@ -12,13 +12,16 @@ tok_per_W, J_per_tok, detail:[{id,got,want,ok}]}.
 import json, sys, re, subprocess, urllib.request, time, os, tempfile
 
 API = "http://localhost:11434/api/chat"
+SYSTEM = None  # optional system prompt (set via --system); None = no system message (cold)
 
 
 def gen(model, prompt, num_predict, temperature=0):
     # /api/chat applies the instruct template; think=False forces a DIRECT answer.
     # Gemma-4 is a thinking model — without this it spends the whole token budget on
     # reasoning that Ollama strips, returning EMPTY content. Pinned regime for all 3.
-    body = json.dumps({"model": model, "messages": [{"role": "user", "content": prompt}],
+    messages = ([{"role": "system", "content": SYSTEM}] if SYSTEM else []) + \
+               [{"role": "user", "content": prompt}]
+    body = json.dumps({"model": model, "messages": messages,
                        "stream": False, "think": False,
                        "options": {"num_predict": num_predict, "temperature": temperature}}).encode()
     req = urllib.request.Request(API, data=body, headers={"Content-Type": "application/json"})
@@ -84,18 +87,22 @@ def run_accuracy(model, items):
 
 
 def main():
+    global SYSTEM
     model, bench = sys.argv[1], sys.argv[2]
+    if "--system" in sys.argv:
+        SYSTEM = sys.argv[sys.argv.index("--system") + 1]
     mode = power_mode()
-    eff = measure_tok_per_watt(model)
     if "--measure-only" in sys.argv:   # power-mode sweep: tok/s-per-watt only (accuracy is mode-independent)
-        print(json.dumps({"model": model, "mode": mode, **eff}))
+        print(json.dumps({"model": model, "mode": mode, **measure_tok_per_watt(model)}))
         return
+    eff = {} if "--accuracy-only" in sys.argv else measure_tok_per_watt(model)
     items = json.load(open(bench))["items"]
     correct, total, detail = run_accuracy(model, items)
-    print(json.dumps({"model": model, "mode": mode,
-                      "accuracy": f"{correct}/{total}",
-                      "accuracy_pct": round(100 * correct / total, 1),
-                      **eff, "detail": detail}))
+    out = {"model": model, "mode": mode, "system_prompt": bool(SYSTEM),
+           "accuracy": f"{correct}/{total}", "accuracy_pct": round(100 * correct / total, 1)}
+    out.update(eff)
+    out["detail"] = detail
+    print(json.dumps(out))
 
 
 if __name__ == "__main__":
